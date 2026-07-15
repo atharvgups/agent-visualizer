@@ -38,6 +38,26 @@ export function NodeDrawer({
         </button>
       </div>
 
+      {live && !terminal && (
+        <div className="drawer-section row">
+          {branchPaused ? (
+            <button onClick={() => onIntervene({ action: "resume_branch", branch: node.branch })}>
+              ▶ Resume branch
+            </button>
+          ) : (
+            <button onClick={() => onIntervene({ action: "pause_branch", branch: node.branch })}>
+              ⏸ Pause branch
+            </button>
+          )}
+          <button
+            className="danger"
+            onClick={() => onIntervene({ action: "kill_branch", branch: node.branch })}
+          >
+            ✕ Kill branch
+          </button>
+        </div>
+      )}
+
       <p className="drawer-summary">{node.summary}</p>
       {rt?.outputSummary && <p className="drawer-output">{rt.outputSummary}</p>}
       {rt?.preferenceNote && <div className="drawer-pref">✎ {rt.preferenceNote}</div>}
@@ -72,26 +92,6 @@ export function NodeDrawer({
           <p className="mono-block">{node.instructions}</p>
         )}
       </div>
-
-      {live && !terminal && (
-        <div className="drawer-section row">
-          {branchPaused ? (
-            <button onClick={() => onIntervene({ action: "resume_branch", branch: node.branch })}>
-              ▶ Resume branch
-            </button>
-          ) : (
-            <button onClick={() => onIntervene({ action: "pause_branch", branch: node.branch })}>
-              ⏸ Pause branch
-            </button>
-          )}
-          <button
-            className="danger"
-            onClick={() => onIntervene({ action: "kill_branch", branch: node.branch })}
-          >
-            ✕ Kill branch
-          </button>
-        </div>
-      )}
 
       {rt?.outputRaw && (
         <div className="drawer-section">
