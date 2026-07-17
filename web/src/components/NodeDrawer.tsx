@@ -63,6 +63,15 @@ export function NodeDrawer({
       )}
 
       <p className="drawer-summary">{node.summary}</p>
+      {rt && Object.keys(rt.counters).length > 0 && (
+        <div className="node-counters">
+          {Object.entries(rt.counters).map(([k, v]) => (
+            <span key={k} className="counter">
+              {v.toLocaleString()} {k}
+            </span>
+          ))}
+        </div>
+      )}
       {rt?.outputSummary && <p className="drawer-output">{rt.outputSummary}</p>}
       {rt?.preferenceNote && <div className="drawer-pref">✎ {rt.preferenceNote}</div>}
 

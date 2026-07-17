@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { FlowMap } from "./FlowMap";
 import { AnnotationFeed } from "./AnnotationFeed";
@@ -24,6 +24,15 @@ export function RunPage({
   const isLive = run.scrub === null;
   const gateId = plan?.approvalGates[0];
   const gateNode = plan?.nodes.find((n) => n.id === gateId);
+
+  useEffect(() => {
+    document.title = plan?.prompt
+      ? `${plan.prompt} — Agent Visualizer`
+      : "Agent Visualizer — mission control for delegated work";
+    return () => {
+      document.title = "Agent Visualizer — mission control for delegated work";
+    };
+  }, [plan?.prompt]);
 
   const exportAudit = () => {
     const blob = new Blob([JSON.stringify(run.events, null, 2)], { type: "application/json" });
