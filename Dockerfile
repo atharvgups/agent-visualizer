@@ -19,5 +19,6 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=4400 DATA_DIR=/data/runs
 COPY --from=build /app /app
 EXPOSE 4400
-VOLUME ["/data"]
+# Persistence: mount a volume at /data (e.g. `railway volume add -m /data`,
+# or `docker run -v agent-viz-data:/data`).
 CMD ["pnpm", "--filter", "server", "start"]
