@@ -5,11 +5,19 @@ export interface PlanNodeData {
   label: string;
   kind: NodeKind;
   status: NodeStatus;
+  branch: string;
   counters: Record<string, number>;
   note?: string;
   isNew?: boolean;
   hasPreferenceNote?: boolean;
   [key: string]: unknown;
+}
+
+/** Deterministic hue per branch so workstreams read as visual groups. */
+export function branchHue(branch: string): number {
+  let h = 0;
+  for (let i = 0; i < branch.length; i++) h = (h * 31 + branch.charCodeAt(i)) | 0;
+  return Math.abs(h) % 360;
 }
 
 const KIND_LABEL: Record<NodeKind, string> = {
@@ -32,12 +40,23 @@ const KIND_ICON: Record<NodeKind, string> = {
 
 export function PlanNodeCard({ data }: { data: PlanNodeData }) {
   const counters = Object.entries(data.counters);
+  const hue = branchHue(data.branch);
   return (
-    <div className={`plan-node status-${data.status}${data.isNew ? " node-new" : ""}`}>
+    <div
+      className={`plan-node status-${data.status}${data.isNew ? " node-new" : ""}`}
+      style={{ borderLeft: `3px solid hsl(${hue} 65% 55% / 0.85)` }}
+    >
       <Handle type="target" position={Position.Left} />
       <div className="node-head">
         <span className={`kind-badge kind-${data.kind}`}>
           {KIND_ICON[data.kind]} {KIND_LABEL[data.kind]}
+        </span>
+        <span
+          className="branch-tag"
+          style={{ color: `hsl(${hue} 65% 70%)` }}
+          title={`branch: ${data.branch}`}
+        >
+          {data.branch}
         </span>
         <span className={`status-dot status-dot-${data.status}`} title={data.status} />
       </div>

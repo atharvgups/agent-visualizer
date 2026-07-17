@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "pnpm --parallel --filter server --filter web dev",
+    "start": "pnpm --filter server start",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",

@@ -40,6 +40,7 @@ export function FlowMap({
           label: n.label,
           kind: n.kind,
           status: rt?.status ?? "proposed",
+          branch: n.branch,
           counters: rt?.counters ?? {},
           note: rt?.note,
           isNew: !knownIds.current.has(n.id) && knownIds.current.size > 0,
