@@ -51,7 +51,11 @@ export function NodeDrawer({
           )}
           <button
             className="danger"
-            onClick={() => onIntervene({ action: "kill_branch", branch: node.branch })}
+            onClick={() => {
+              if (window.confirm(`Kill branch "${node.branch}"? Its remaining work stops permanently.`)) {
+                void onIntervene({ action: "kill_branch", branch: node.branch });
+              }
+            }}
           >
             ✕ Kill branch
           </button>

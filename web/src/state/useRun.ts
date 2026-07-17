@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RunEvent, RunState, reduceEvents } from "@agent-viz/shared";
+import { apiPost, getRunSnapshot } from "./api";
 
 export interface RunApi {
-  runId: string | null;
   events: RunEvent[];
   /** State at the scrub position (or live head when not scrubbing). */
   state: RunState;
@@ -10,84 +10,135 @@ export interface RunApi {
   liveState: RunState;
   scrub: number | null;
   setScrub: (i: number | null) => void;
-  start: (prompt: string) => Promise<void>;
   approve: () => Promise<void>;
   intervene: (body: Record<string, string>) => Promise<void>;
   resolveGate: (
     decisions: { itemId: string; action: "approved" | "edited" | "rejected"; editedContent?: string }[]
   ) => Promise<void>;
-  planning: boolean;
+  loading: boolean;
+  notFound: boolean;
+  /** True when the run is executing in the server process right now. */
+  live: boolean;
 }
 
-async function post(url: string, body?: unknown): Promise<void> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error ?? `request failed: ${res.status}`);
-  }
-}
-
-export function useRun(): RunApi {
-  const [runId, setRunId] = useState<string | null>(null);
+export function useRun(runId: string, onError: (message: string) => void): RunApi {
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [scrub, setScrub] = useState<number | null>(null);
-  const [planning, setPlanning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [live, setLive] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
-  const start = useCallback(async (prompt: string) => {
-    setPlanning(true);
-    setEvents([]);
-    setScrub(null);
-    try {
-      const res = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) throw new Error(`planner failed: ${res.status}`);
-      const { id } = (await res.json()) as { id: string };
-      setRunId(id);
-      esRef.current?.close();
-      const es = new EventSource(`/api/runs/${id}/events`);
-      es.onmessage = (m) => {
-        const ev = JSON.parse(m.data) as RunEvent;
-        setEvents((prev) =>
-          prev.some((p) => p.seq === ev.seq) ? prev : [...prev, ev].sort((a, b) => a.seq - b.seq)
-        );
-      };
-      esRef.current = es;
-    } finally {
-      setPlanning(false);
-    }
+  const addEvent = useCallback((ev: RunEvent) => {
+    setEvents((prev) =>
+      prev.some((p) => p.seq === ev.seq) ? prev : [...prev, ev].sort((a, b) => a.seq - b.seq)
+    );
   }, []);
 
-  const approve = useCallback(async () => {
-    if (runId) await post(`/api/runs/${runId}/approve`);
-  }, [runId]);
+  useEffect(() => {
+    let cancelled = false;
+    setEvents([]);
+    setScrub(null);
+    setLoading(true);
+    setNotFound(false);
+    setLive(false);
 
-  const intervene = useCallback(
-    async (body: Record<string, string>) => {
-      if (runId) await post(`/api/runs/${runId}/intervene`, body);
-    },
-    [runId]
-  );
+    const openStream = () => {
+      esRef.current?.close();
+      const es = new EventSource(`/api/runs/${runId}/events`);
+      es.onmessage = (m) => addEvent(JSON.parse(m.data) as RunEvent);
+      es.onerror = () => {
+        // server restarted or run finished: fall back to the snapshot
+        void getRunSnapshot(runId)
+          .then((snap) => {
+            if (cancelled) return;
+            for (const ev of snap.events) addEvent(ev);
+            setLive(snap.live);
+            if (!snap.live) es.close();
+          })
+          .catch(() => {
+            /* transient network error: EventSource retries on its own */
+          });
+      };
+      esRef.current = es;
+    };
 
-  const resolveGate = useCallback(
-    async (decisions: { itemId: string; action: "approved" | "edited" | "rejected"; editedContent?: string }[]) => {
-      if (runId) await post(`/api/runs/${runId}/gate`, { decisions });
-    },
-    [runId]
-  );
+    getRunSnapshot(runId)
+      .then((snap) => {
+        if (cancelled) return;
+        for (const ev of snap.events) addEvent(ev);
+        setLive(snap.live);
+        setLoading(false);
+        if (snap.live) openStream();
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setLoading(false);
+        setNotFound(true);
+        onError(err.message);
+      });
+
+    return () => {
+      cancelled = true;
+      esRef.current?.close();
+      esRef.current = null;
+    };
+    // note: onError (a stable toast setter) is intentionally not a dependency —
+    // the stream must only re-subscribe when the run id changes
+  }, [runId, addEvent]);
 
   const liveState = useMemo(() => reduceEvents(events), [events]);
+
+  // once the run finishes, the stream has nothing more to say
+  useEffect(() => {
+    if (liveState.phase === "finished") {
+      esRef.current?.close();
+      esRef.current = null;
+      setLive(false);
+    }
+  }, [liveState.phase]);
+
   const state = useMemo(
     () => (scrub === null ? liveState : reduceEvents(events.slice(0, scrub + 1))),
     [events, scrub, liveState]
   );
 
-  return { runId, events, state, liveState, scrub, setScrub, start, approve, intervene, resolveGate, planning };
+  const guard = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      try {
+        await fn();
+      } catch (err) {
+        onError((err as Error).message);
+      }
+    },
+    [onError]
+  );
+
+  const approve = useCallback(
+    () => guard(() => apiPost(`/api/runs/${runId}/approve`)),
+    [guard, runId]
+  );
+  const intervene = useCallback(
+    (body: Record<string, string>) => guard(() => apiPost(`/api/runs/${runId}/intervene`, body)),
+    [guard, runId]
+  );
+  const resolveGate = useCallback(
+    (decisions: { itemId: string; action: "approved" | "edited" | "rejected"; editedContent?: string }[]) =>
+      guard(() => apiPost(`/api/runs/${runId}/gate`, { decisions })),
+    [guard, runId]
+  );
+
+  return {
+    events,
+    state,
+    liveState,
+    scrub,
+    setScrub,
+    approve,
+    intervene,
+    resolveGate,
+    loading,
+    notFound,
+    live,
+  };
 }

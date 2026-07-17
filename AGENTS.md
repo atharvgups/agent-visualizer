@@ -11,3 +11,5 @@ Non-obvious notes:
 - The planner is deterministic (domain: event research → application drafting) unless `ANTHROPIC_API_KEY` is set, in which case an LLM plans arbitrary prompts with the deterministic planner as fallback.
 - The mid-run "Chinese social discovery" plan amendment only triggers when the measured share of verified findings from Chinese-language sources crosses a threshold — use a China-related topic (e.g. ChinaJoy) in demos; other topics correctly won't amend.
 - `SIM_SPEED` is read at module load in `server/src/orchestrator/run.ts`; in tests set `process.env.SIM_SPEED` before importing the module (see `run.test.ts`).
+- Runs persist as JSONL under `DATA_DIR` (default `server/data/runs` in dev, gitignored). Restarting the server closes any mid-execution run with an `aborted` event; interventions on non-live runs return 409. Delete the data dir for a clean slate.
+- Production mode is single-port: if `web/dist` exists, the server serves it with an SPA fallback; `pnpm --filter web build && pnpm start`. The Dockerfile packages exactly this.

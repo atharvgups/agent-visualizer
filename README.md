@@ -36,6 +36,22 @@ Environment variables (all optional):
 - `ANTHROPIC_API_KEY` — use an LLM for planning arbitrary prompts. Without it, a deterministic planner covers the research → verification → application-drafting domain.
 - `SIM_SPEED` — multiplier for simulated work speed (tests use 60).
 - `PORT` — server port (default 4400).
+- `DATA_DIR` — where run event logs are persisted as JSONL (default `data/runs` under the server working directory).
+
+## Persistence & honesty across restarts
+
+Every event is appended to a per-run JSONL file, so audit trails survive restarts and appear in the home-page run list. A run that was mid-execution when the server died is closed with an explicit `aborted` marker on the next boot — the map never pretends a dead run is alive. Runs are shareable/reloadable via `#/run/<id>` URLs.
+
+## Deployment
+
+Single-container production image (the server serves the built frontend on one port):
+
+```bash
+docker build -t agent-visualizer .
+docker run -p 4400:4400 -v agent-viz-data:/data agent-visualizer
+```
+
+Or without Docker: `pnpm install && pnpm --filter web build && pnpm start` (serves everything on `PORT`, default 4400). Health check endpoint: `GET /healthz`.
 
 ## Try it
 
