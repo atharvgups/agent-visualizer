@@ -46,7 +46,12 @@ function pickProvider(): Provider | null {
 }
 
 function parsePlanJson(id: string, prompt: string, text: string): Plan {
-  const jsonText = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error("planner response contained no JSON object");
+  }
+  const jsonText = text.slice(start, end + 1);
   const parsed = JSON.parse(jsonText) as Omit<Plan, "id" | "prompt">;
   return Plan.parse({ ...parsed, id, prompt });
 }
@@ -66,13 +71,19 @@ async function anthropicComplete(prompt: string, apiKey: string): Promise<string
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  if (!res.ok) throw new Error(`anthropic api ${res.status}`);
+  if (!res.ok) throw new Error(`anthropic api ${res.status}: ${await readErrorBody(res)}`);
   const data = (await res.json()) as { content: { type: string; text?: string }[] };
-  return data.content.find((c) => c.type === "text")?.text ?? "";
+  const text = data.content.find((c) => c.type === "text")?.text ?? "";
+  if (!text.trim()) throw new Error("anthropic api returned empty text");
+  return text;
 }
 
 async function geminiComplete(prompt: string, apiKey: string): Promise<string> {
   const model = process.env.PLANNER_MODEL ?? "gemini-2.5-flash";
+  // Gemini 2.5+ thinks by default; thinking tokens count against
+  // maxOutputTokens and can leave the candidate empty. Disable thinking for
+  // reliable structured plan JSON (domain planner is the quality fallback).
+  const thinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET ?? "0");
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -87,13 +98,42 @@ async function geminiComplete(prompt: string, apiKey: string): Promise<string> {
         generationConfig: {
           responseMimeType: "application/json",
           maxOutputTokens: 8192,
+          thinkingConfig: { thinkingBudget: Number.isFinite(thinkingBudget) ? thinkingBudget : 0 },
         },
       }),
     }
   );
-  if (!res.ok) throw new Error(`gemini api ${res.status}`);
+  if (!res.ok) throw new Error(`gemini api ${res.status}: ${await readErrorBody(res)}`);
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    candidates?: {
+      finishReason?: string;
+      content?: { parts?: { text?: string; thought?: boolean }[] };
+    }[];
+    promptFeedback?: { blockReason?: string };
   };
-  return data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  if (data.promptFeedback?.blockReason) {
+    throw new Error(`gemini blocked prompt (${data.promptFeedback.blockReason})`);
+  }
+  const candidate = data.candidates?.[0];
+  if (!candidate) throw new Error("gemini api returned no candidates");
+  const text =
+    candidate.content?.parts
+      ?.filter((p) => !p.thought)
+      .map((p) => p.text ?? "")
+      .join("") ?? "";
+  if (!text.trim()) {
+    throw new Error(
+      `gemini api returned empty text (finishReason=${candidate.finishReason ?? "unknown"})`
+    );
+  }
+  return text;
+}
+
+async function readErrorBody(res: Response): Promise<string> {
+  try {
+    const body = await res.text();
+    return body.slice(0, 240).replace(/\s+/g, " ");
+  } catch {
+    return "(unreadable body)";
+  }
 }
