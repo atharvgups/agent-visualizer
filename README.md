@@ -33,7 +33,9 @@ pnpm build
 
 Environment variables (all optional):
 
-- `ANTHROPIC_API_KEY` — use an LLM for planning arbitrary prompts. Without it, a deterministic planner covers the research → verification → application-drafting domain.
+- `ANTHROPIC_API_KEY` — use Claude for planning arbitrary prompts.
+- `GEMINI_API_KEY` — use Google Gemini instead (has a free tier via [Google AI Studio](https://aistudio.google.com), no credit card). Anthropic takes precedence if both are set. Without either key, a deterministic planner covers the research → verification → application-drafting domain.
+- `PLANNER_MODEL` — override the model id for whichever provider is active.
 - `SIM_SPEED` — multiplier for simulated work speed (tests use 60).
 - `PORT` — server port (default 4400).
 - `DATA_DIR` — where run event logs are persisted as JSONL (default `data/runs` under the server working directory).
