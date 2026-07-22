@@ -17,7 +17,7 @@ Diff noise is controlled with two event tiers: **structural** events (new branch
 ## Architecture
 
 - `shared/` — plan schema (fixed node ontology: source / transform / store / decision / human_gate / loop), two-tier event schema, and the pure event-log reducer used by both the live view and the timeline replay.
-- `server/` — planner (LLM-backed when `ANTHROPIC_API_KEY` is set, deterministic domain planner otherwise) and the orchestrator that executes the plan JSON with simulated tools, streaming events over SSE. Express API on port 4400.
+- `server/` — planner (LLM-backed when `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set, deterministic domain planner otherwise) and the orchestrator that executes the plan JSON with simulated tools, streaming events over SSE. Express API on port 4400.
 - `web/` — React + React Flow (dagre auto-layout) UI on port 5180. Node drawer with human-level summary first and technical detail one click deeper; interventions (pause / kill branch, edit instructions); human gate panel; timeline scrubber.
 
 ## Development
@@ -35,7 +35,8 @@ Environment variables (all optional):
 
 - `ANTHROPIC_API_KEY` — use Claude for planning arbitrary prompts.
 - `GEMINI_API_KEY` — use Google Gemini instead (has a free tier via [Google AI Studio](https://aistudio.google.com), no credit card). Anthropic takes precedence if both are set. Without either key, a deterministic planner covers the research → verification → application-drafting domain.
-- `PLANNER_MODEL` — override the model id for whichever provider is active.
+- `PLANNER_MODEL` — override the model id for whichever provider is active (Gemini default: `gemini-2.5-flash`).
+- `GEMINI_THINKING_BUDGET` — Gemini thinking-token budget (default `0`). Thinking tokens count against the output limit and can empty the plan JSON if left on.
 - `SIM_SPEED` — multiplier for simulated work speed (tests use 60).
 - `PORT` — server port (default 4400).
 - `DATA_DIR` — where run event logs are persisted as JSONL (default `data/runs` under the server working directory).
