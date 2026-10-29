@@ -1,0 +1,66 @@
+{
+  "id": "example-login-redesign",
+  "prompt": "Research current auth, draft two login redesign approaches, and wait for me before changing any code.",
+  "interpretation": "You want a real picture of how login works today, two concrete redesign options with tradeoffs, and a hard stop before anyone edits the codebase.",
+  "nodes": [
+    {
+      "id": "read-auth",
+      "kind": "source",
+      "label": "Read current auth",
+      "summary": "Collect how login, sessions, and password reset actually work in this repo.",
+      "instructions": "Search the repo for auth routes, session storage, identity providers, and tests.",
+      "agent": "code-research",
+      "branch": "code-research"
+    },
+    {
+      "id": "read-product",
+      "kind": "source",
+      "label": "Read product constraints",
+      "summary": "Find product notes that constrain a login change.",
+      "instructions": "Look for docs and tickets about login and SSO.",
+      "agent": "product-research",
+      "branch": "product-research"
+    },
+    {
+      "id": "merge-context",
+      "kind": "store",
+      "label": "Merge research",
+      "summary": "One packet with as-is auth plus product constraints.",
+      "instructions": "Merge both branches. Flag conflicts.",
+      "agent": "synthesis",
+      "branch": "synthesis"
+    },
+    {
+      "id": "draft-approaches",
+      "kind": "loop",
+      "label": "Draft each approach",
+      "summary": "Write a one-page design for each selected approach.",
+      "instructions": "For each approach, draft scope, files likely to change, migration steps, and rollback. Do not edit application code.",
+      "agent": "design",
+      "branch": "design"
+    },
+    {
+      "id": "review-gate",
+      "kind": "human_gate",
+      "label": "Your review",
+      "summary": "Nothing is implemented until you pick an approach.",
+      "instructions": "Present both drafts. Capture approve, edit, or reject.",
+      "agent": "design",
+      "branch": "design"
+    }
+  ],
+  "edges": [
+    { "id": "e-auth-merge", "source": "read-auth", "target": "merge-context" },
+    { "id": "e-product-merge", "source": "read-product", "target": "merge-context" },
+    { "id": "e-merge-draft", "source": "merge-context", "target": "draft-approaches" },
+    { "id": "e-draft-gate", "source": "draft-approaches", "target": "review-gate" }
+  ],
+  "approvalGates": ["review-gate"],
+  "loops": [
+    {
+      "nodeId": "draft-approaches",
+      "until": "each selected approach has a one-page draft",
+      "maxIterations": 2
+    }
+  ]
+}
