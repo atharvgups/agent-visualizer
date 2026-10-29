@@ -1,0 +1,175 @@
+{
+  "events": [
+    {
+      "id": "e0",
+      "ts": 1710000000000,
+      "seq": 0,
+      "type": "plan_proposed",
+      "tier": "structural",
+      "plan": {
+        "id": "run-1",
+        "prompt": "Research login options and draft two approaches.",
+        "interpretation": "Two research branches, then a review gate before any code change.",
+        "nodes": [
+          {
+            "id": "read-auth",
+            "kind": "source",
+            "label": "Read current auth",
+            "summary": "Repo search",
+            "instructions": "Find auth code",
+            "agent": "code-research",
+            "branch": "code-research"
+          },
+          {
+            "id": "read-product",
+            "kind": "source",
+            "label": "Read product constraints",
+            "summary": "Docs search",
+            "instructions": "Find product notes",
+            "agent": "product-research",
+            "branch": "product-research"
+          },
+          {
+            "id": "merge",
+            "kind": "store",
+            "label": "Merge research",
+            "summary": "Combine",
+            "instructions": "Merge",
+            "agent": "synthesis",
+            "branch": "synthesis"
+          },
+          {
+            "id": "review-gate",
+            "kind": "human_gate",
+            "label": "Your review",
+            "summary": "Stop",
+            "instructions": "Present drafts",
+            "agent": "design",
+            "branch": "design"
+          }
+        ],
+        "edges": [
+          { "id": "e1", "source": "read-auth", "target": "merge" },
+          { "id": "e2", "source": "read-product", "target": "merge" },
+          { "id": "e3", "source": "merge", "target": "review-gate" }
+        ],
+        "approvalGates": ["review-gate"],
+        "loops": []
+      }
+    },
+    {
+      "id": "e1",
+      "ts": 1710000001000,
+      "seq": 1,
+      "type": "intervention",
+      "tier": "structural",
+      "action": "approve_plan"
+    },
+    {
+      "id": "e2",
+      "ts": 1710000001100,
+      "seq": 2,
+      "type": "plan_approved",
+      "tier": "structural"
+    },
+    {
+      "id": "e3",
+      "ts": 1710000002000,
+      "seq": 3,
+      "type": "node_status",
+      "tier": "operational",
+      "nodeId": "read-auth",
+      "status": "running"
+    },
+    {
+      "id": "e4",
+      "ts": 1710000003000,
+      "seq": 4,
+      "type": "node_progress",
+      "tier": "operational",
+      "nodeId": "read-auth",
+      "counters": { "files": 12 }
+    },
+    {
+      "id": "e5",
+      "ts": 1710000004000,
+      "seq": 5,
+      "type": "node_status",
+      "tier": "operational",
+      "nodeId": "read-product",
+      "status": "running"
+    },
+    {
+      "id": "e6",
+      "ts": 1710000005000,
+      "seq": 6,
+      "type": "intervention",
+      "tier": "structural",
+      "action": "pause_branch",
+      "branch": "product-research"
+    },
+    {
+      "id": "e7",
+      "ts": 1710000006000,
+      "seq": 7,
+      "type": "node_status",
+      "tier": "operational",
+      "nodeId": "read-product",
+      "status": "paused"
+    },
+    {
+      "id": "e8",
+      "ts": 1710000007000,
+      "seq": 8,
+      "type": "node_status",
+      "tier": "operational",
+      "nodeId": "read-auth",
+      "status": "done"
+    },
+    {
+      "id": "e9",
+      "ts": 1710000008000,
+      "seq": 9,
+      "type": "node_output",
+      "tier": "operational",
+      "nodeId": "read-auth",
+      "summary": "Found 12 auth-related files.",
+      "raw": "src/auth/session.ts"
+    },
+    {
+      "id": "e10",
+      "ts": 1710000009000,
+      "seq": 10,
+      "type": "plan_amendment",
+      "tier": "structural",
+      "change": "New branch: SSO vendor check",
+      "reason": "Auth code already talks to an identity provider the original plan did not cover.",
+      "evidence": "3 of 12 auth files import the SSO client.",
+      "mutation": {
+        "addNodes": [
+          {
+            "id": "sso-check",
+            "kind": "source",
+            "label": "Check SSO vendor",
+            "summary": "Confirm the identity provider in use.",
+            "instructions": "Read SSO client config and list enabled providers.",
+            "agent": "code-research",
+            "branch": "code-research"
+          }
+        ],
+        "addEdges": [{ "id": "e-sso", "source": "read-auth", "target": "sso-check", "label": "25% SSO files" }],
+        "removeNodeIds": [],
+        "removeEdgeIds": []
+      }
+    },
+    {
+      "id": "e11",
+      "ts": 1710000010000,
+      "seq": 11,
+      "type": "run_finished",
+      "tier": "structural",
+      "outcome": "aborted",
+      "summary": "1 step completed, rest stopped after the product-research pause. The map above is the audit trail of what actually ran."
+    }
+  ]
+}

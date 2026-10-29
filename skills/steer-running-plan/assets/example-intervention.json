@@ -1,0 +1,5 @@
+{
+  "action": "edit_instructions",
+  "nodeId": "draft-approaches",
+  "instructions": "For each approach, draft scope, likely files, migration steps, and rollback. Lead with risk. Do not edit application code."
+}

@@ -1,0 +1,96 @@
+{
+  "id": "example-login-redesign",
+  "prompt": "Research current auth, draft two login redesign approaches, and wait for me before changing any code.",
+  "interpretation": "You want a real picture of how login works today, two concrete redesign options with tradeoffs, and a hard stop before anyone edits the codebase.",
+  "nodes": [
+    {
+      "id": "read-auth",
+      "kind": "source",
+      "label": "Read current auth",
+      "summary": "Collect how login, sessions, and password reset actually work in this repo.",
+      "instructions": "Search the repo for auth routes, session storage, identity providers, and tests. Capture file paths and the current user-visible login flow.",
+      "agent": "code-research",
+      "branch": "code-research"
+    },
+    {
+      "id": "read-product",
+      "kind": "source",
+      "label": "Read product constraints",
+      "summary": "Find product notes, tickets, and UX copy that constrain a login change.",
+      "instructions": "Look for docs, tickets, and UI copy about login, signup, SSO, and account recovery. Note must-keep behaviors.",
+      "agent": "product-research",
+      "branch": "product-research"
+    },
+    {
+      "id": "summarize-auth",
+      "kind": "transform",
+      "label": "Summarize auth as-is",
+      "summary": "Turn repo findings into a short as-is picture a human can check.",
+      "instructions": "Write a plain-language as-is summary: entry points, identity sources, session lifetime, failure modes. Drop speculation.",
+      "agent": "code-research",
+      "branch": "code-research"
+    },
+    {
+      "id": "merge-context",
+      "kind": "store",
+      "label": "Merge research",
+      "summary": "One packet with as-is auth plus product constraints.",
+      "instructions": "Merge both branches. Deduplicate facts. Flag conflicts between code and docs.",
+      "agent": "synthesis",
+      "branch": "synthesis"
+    },
+    {
+      "id": "pick-approaches",
+      "kind": "decision",
+      "label": "Pick two approaches",
+      "summary": "Choose two redesigns that fit the constraints, not a menu of ten.",
+      "instructions": "Select two approaches that both satisfy must-keep behaviors. Score them on risk, effort, and user impact.",
+      "agent": "synthesis",
+      "branch": "synthesis"
+    },
+    {
+      "id": "draft-approaches",
+      "kind": "loop",
+      "label": "Draft each approach",
+      "summary": "Write a one-page design for each selected approach.",
+      "instructions": "For each approach, draft scope, files likely to change, migration steps, and rollback. Do not edit application code.",
+      "agent": "design",
+      "branch": "design"
+    },
+    {
+      "id": "review-gate",
+      "kind": "human_gate",
+      "label": "Your review",
+      "summary": "Nothing is implemented until you pick an approach.",
+      "instructions": "Present both drafts. Capture approve, edit, or reject per approach, plus any preference notes.",
+      "agent": "design",
+      "branch": "design"
+    },
+    {
+      "id": "package",
+      "kind": "store",
+      "label": "Package the chosen plan",
+      "summary": "Hand back the approved approach as the implementation brief.",
+      "instructions": "Package the approved draft and preference notes. Ready for a later implementation run.",
+      "agent": "design",
+      "branch": "design"
+    }
+  ],
+  "edges": [
+    { "id": "e-auth", "source": "read-auth", "target": "summarize-auth" },
+    { "id": "e-auth-merge", "source": "summarize-auth", "target": "merge-context" },
+    { "id": "e-product-merge", "source": "read-product", "target": "merge-context" },
+    { "id": "e-merge-pick", "source": "merge-context", "target": "pick-approaches" },
+    { "id": "e-pick-draft", "source": "pick-approaches", "target": "draft-approaches", "label": "two options" },
+    { "id": "e-draft-gate", "source": "draft-approaches", "target": "review-gate" },
+    { "id": "e-gate-package", "source": "review-gate", "target": "package", "label": "approved" }
+  ],
+  "approvalGates": ["review-gate"],
+  "loops": [
+    {
+      "nodeId": "draft-approaches",
+      "until": "each selected approach has a one-page draft",
+      "maxIterations": 2
+    }
+  ]
+}
