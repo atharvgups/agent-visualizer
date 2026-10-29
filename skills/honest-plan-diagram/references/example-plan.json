@@ -1,0 +1,106 @@
+{
+  "id": "example-chinajoy",
+  "prompt": "Find ChinaJoy side events worth applying to, then draft applications I can review.",
+  "interpretation": "You want a short list of real ChinaJoy-adjacent events, checked against organizers, then tailored application drafts. Nothing goes out until you say so.",
+  "nodes": [
+    {
+      "id": "web-search",
+      "kind": "source",
+      "label": "Find events on the web",
+      "summary": "Search the open web for ChinaJoy side events, satellite gatherings and adjacent meetups.",
+      "instructions": "Run broad and narrow web queries for events around ChinaJoy. Collect name, date, organizer and link.",
+      "agent": "web-research",
+      "branch": "web-research"
+    },
+    {
+      "id": "web-verify",
+      "kind": "transform",
+      "label": "Verify relevance",
+      "summary": "Check each candidate is real, current and actually related.",
+      "instructions": "Cross-check dates, organizers and venues. Drop duplicates, stale listings and unrelated events.",
+      "agent": "web-research",
+      "branch": "web-research"
+    },
+    {
+      "id": "social-search",
+      "kind": "source",
+      "label": "Scan social chatter",
+      "summary": "Watch social platforms for event announcements that never hit event sites.",
+      "instructions": "Search social platforms for ChinaJoy side-event announcements, host callouts and RSVP links.",
+      "agent": "social-research",
+      "branch": "social-research"
+    },
+    {
+      "id": "social-verify",
+      "kind": "transform",
+      "label": "Confirm social finds",
+      "summary": "Separate real announcements from noise and hype.",
+      "instructions": "Verify each social find against an organizer account or registration page before keeping it.",
+      "agent": "social-research",
+      "branch": "social-research"
+    },
+    {
+      "id": "merge-events",
+      "kind": "store",
+      "label": "Merge verified events",
+      "summary": "Combine all verified events into one deduplicated list.",
+      "instructions": "Merge branch outputs, dedupe by name and date, keep the best source per event.",
+      "agent": "synthesis",
+      "branch": "synthesis"
+    },
+    {
+      "id": "prioritize",
+      "kind": "decision",
+      "label": "Prioritize opportunities",
+      "summary": "Rank events by fit, reach and application effort.",
+      "instructions": "Score each event on audience fit, strategic value and effort. Select the top items for drafting.",
+      "agent": "synthesis",
+      "branch": "synthesis"
+    },
+    {
+      "id": "draft-applications",
+      "kind": "loop",
+      "label": "Draft applications",
+      "summary": "Write a tailored application for each priority event.",
+      "instructions": "For each selected event, draft an application with positioning tailored to that event's audience.",
+      "agent": "drafting",
+      "branch": "drafting"
+    },
+    {
+      "id": "review-gate",
+      "kind": "human_gate",
+      "label": "Your review",
+      "summary": "Nothing is submitted until you approve the drafts.",
+      "instructions": "Present drafts for approval. Capture edits as preference notes for future drafting.",
+      "agent": "drafting",
+      "branch": "drafting"
+    },
+    {
+      "id": "package",
+      "kind": "store",
+      "label": "Package approved applications",
+      "summary": "Hand back only the drafts you approved.",
+      "instructions": "Collect approved drafts. Omit rejected items. Return files and a short cover note.",
+      "agent": "drafting",
+      "branch": "drafting"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "web-search", "target": "web-verify" },
+    { "id": "e2", "source": "social-search", "target": "social-verify" },
+    { "id": "e3", "source": "web-verify", "target": "merge-events" },
+    { "id": "e4", "source": "social-verify", "target": "merge-events" },
+    { "id": "e5", "source": "merge-events", "target": "prioritize" },
+    { "id": "e6", "source": "prioritize", "target": "draft-applications" },
+    { "id": "e7", "source": "draft-applications", "target": "review-gate" },
+    { "id": "e8", "source": "review-gate", "target": "package" }
+  ],
+  "approvalGates": ["review-gate"],
+  "loops": [
+    {
+      "nodeId": "draft-applications",
+      "until": "until every selected event has a draft",
+      "maxIterations": 8
+    }
+  ]
+}
